@@ -220,14 +220,18 @@ class RegEdit():
         value.setData(data)
 
 
-    def replaceAll(self, oldstring, newstring, searchKeyName=True, searchValueData=True, searchValueName=True, caseSensitive=False):
+    def replaceAll(self, oldstring, newstring, searchKeyName=True, searchValueName=True, searchValueData=True, caseSensitive=False):
         self.findAll(oldstring, searchKeyName, searchValueData, searchValueName, caseSensitive)
         for x in self.found:
             print (x)
             if x[0] == "Value Data":
                 self.replaceValueData(x[1], oldstring, newstring)
 
-    def findAll(self, searchString, searchKeyName=True, searchValueData=True, searchValueName=True, caseSensitive=False):
+    def findAll(self, searchString, searchKeyName=True, searchValueName=True, searchValueData=True, caseSensitive=False):
+        if not (searchKeyName or searchValueName or searchValueData):
+            print("Error: At least one category of data must be selected to search.")
+            return
+
         print("Finding all instances of \"" + searchString + "\"")
         self.reset()
         self.searchKeyName = searchKeyName
