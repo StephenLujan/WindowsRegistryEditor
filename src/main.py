@@ -1,13 +1,17 @@
+# Application for python 3 with python for windows extension
+# http://sourceforge.net/projects/pywin32/
+
 
 from regedit import *
 from tkinter import *
-
-
-
+try:
+    import thread
+except ImportError:
+    import _thread as thread
 
 class App:
     def __init__(self, master):
-        self.r = RegEdit()
+        self.reg = RegEdit()
         frame = Frame(master)
         frame.pack()
         l = Label(frame, text="Find What:")
@@ -38,15 +42,32 @@ class App:
         c = Checkbutton(frame, text="Value Data", variable=self.searchValueData)
         c.grid(row=3, column=2)
 
-    def find(self):
-        self.r.findAll(self.findString.get(), self.searchKeyName.get(),
+    def _find(self):
+        self.disable()
+        self.reg.findAll(self.findString.get(), self.searchKeyName.get(),
                         self.searchValueName.get(), self.searchValueData.get())
+        self.enable()
 
-    def replace(self):
-        self.r.replaceAll(self.findString.get(), self.replaceString.get(),
+    def _replace(self):
+        self.disable()
+        self.reg.replaceAll(self.findString.get(), self.replaceString.get(),
                         self.searchKeyName.get(), self.searchValueName.get(),
                         self.searchValueData.get())
-        
+        self.enable()
+
+    def find(self):
+        thread.start_new_thread(self._find, ())
+
+    def replace(self):
+        thread.start_new_thread(self._replace, ())
+
+    def disable(self):
+        self.replaceButton.config(state = DISABLED)
+        self.findButton.config(state = DISABLED)
+
+    def enable(self):
+        self.replaceButton.config(state = NORMAL)
+        self.findButton.config(state = NORMAL)
 root = Tk()
 root.title("Registry Editor")
 

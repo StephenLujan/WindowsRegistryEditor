@@ -1,11 +1,20 @@
 import sys
 
 import pywintypes
-
 import string
 import traceback
-import winreg as win
 
+try:
+    import winreg as win
+except ImportError:
+    import _winreg as win
+
+import logging
+import time
+
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='(%(threadName)-10s) %(message)s',)
 ERROR_LEVEL = 0
 
 readAccess = win.KEY_READ | win.KEY_ENUMERATE_SUB_KEYS | win.KEY_QUERY_VALUE
@@ -54,9 +63,9 @@ class RegKey():
                 return RegKey(subKeyHandle, subKeyName, self.directory + "\\" + self.name)
         except:
             if ERROR_LEVEL > 0:
-                print ("failed to open key", self.directory, "\\", subKeyName)
+                logging.debug ("failed to open key", self.directory, "\\", subKeyName)
             if ERROR_LEVEL > 1:
-                traceback.print_exc(file=sys.stdout)
+                traceback.logging.debug_exc(file=sys.stdout)
 
     def getTotalSubKeys(self):
         return win.QueryInfoKey(self.hkey)[0]
@@ -86,11 +95,22 @@ class RegKey():
             self.hkey = win.OpenKey(hive, path, 0, win.KEY_ALL_ACCESS)
         except:
             if ERROR_LEVEL > 0:
-                print ("failed to open key for editing", self.directory, "\\", subKeyName)
+                logging.debug ("failed to open key for editing", self.directory, "\\", subKeyName)
             if ERROR_LEVEL > 1:
-                traceback.print_exc(file=sys.stdout)
+                traceback.logging.debug_exc(file=sys.stdout)
                 return -1
 
+def getRegKey(name):
+    if name == "HKEY_CLASSES_ROOT":
+        return RegKey(win.HKEY_CLASSES_ROOT, "HKEY_CLASSES_ROOT", "HKEY_CLASSES_ROOT")
+    elif name == "HKEY_CURRENT_USER":
+        return RegKey(win.HKEY_CURRENT_USER, "HKEY_CURRENT_USER", "HKEY_CURRENT_USER")
+    elif name == "HKEY_LOCAL_MACHINE":
+        return RegKey(win.HKEY_LOCAL_MACHINE, "HKEY_LOCAL_MACHINE", "HKEY_LOCAL_MACHINE")
+    elif name == "HKEY_USERS":
+        return RegKey(win.HKEY_USERS, "HKEY_USERS", "HKEY_USERS")
+    else:
+        logging.debug("Couldn't find registry hive named " + name + ".")
 
 
 class RegEdit():
@@ -110,20 +130,20 @@ class RegEdit():
 
     def addSearchResult(self, result):
         if result[0] == "Key Name":
-            print("Key Name Match:")
-            print("  key:", result[1].directory + "\\" + result[1].name)
+            logging.debug("Key Name Match:")
+            logging.debug("  key: " + result[1].directory + "\\" + result[1].name)
         elif result[0] == "Value Name":
-            print("Value Name Match:")
-            print("  key:", result[1].regkey.directory + "\\" + result[1].regkey.name)
-            print("  value index:", result[1].index)
-            print("  value name:", result[1].name)
-            print("  value data:", result[1].data)
+            logging.debug("Value Name Match:")
+            logging.debug("  key:" + result[1].regkey.directory + "\\" + result[1].regkey.name)
+            logging.debug("  value index: " + str(result[1].index))
+            logging.debug("  value name: " + result[1].name)
+            logging.debug("  value data: " + str(result[1].data))
         elif result[0] == "Value Data":
-            print("Value Data Match:")
-            print("  key:", result[1].regkey.directory + "\\" + result[1].regkey.name)
-            print("  value index:", result[1].index)
-            print("  value name:", result[1].name)
-            print("  value data:", result[1].data)
+            logging.debug("Value Data Match:")
+            logging.debug("  key:" + result[1].regkey.directory + "\\" + result[1].regkey.name)
+            logging.debug("  value index: " + str(result[1].index))
+            logging.debug("  value name: " + result[1].name)
+            logging.debug("  value data: " + str(result[1].data))
 
         self.found.append(result)
 
@@ -131,6 +151,7 @@ class RegEdit():
 
         subKeyName = None
         subKeyHandle = None
+        time.sleep(0)
 
         # process this key and return the results
         self.directory = regkey.directory
@@ -166,7 +187,7 @@ class RegEdit():
 
     def iterateValues(self, regkey, func, params=None):
         num = regkey.getTotalValues()
-        #print (num, " values found.")
+        #logging.debug (num, " values found.")
         for index in range (0, num):
             value = regkey.getValue(index)
             if params:
@@ -178,7 +199,7 @@ class RegEdit():
         return False
 
     def p(self, value):
-        print (value)
+        logging.debug (value)
 
     def findInValue(self, value):
         data = str(value.data)
@@ -186,28 +207,28 @@ class RegEdit():
         if not self.searchCaseSensitive:
             data = data.lower()
             name = name.lower()
-        #print (data)
+        #logging.debug (data)
         if (self.searchValueData):
             index = data.find(self.searchString)
             if index > -1:
-                #print ("found!")
+                #logging.debug ("found!")
                 self.addSearchResult(["Value Data", value])
         if (self.searchValueName):
             index = name.find(self.searchString)
             if index > -1:
-                #print ("found!")
+                #logging.debug ("found!")
                 self.addSearchResult(["Value Name", value])
         return False
 
     def replaceValueData(self, value, oldString, newString):
-        print("replacing value data")
+        logging.debug("replacing value data")
         data = str(value.data)
         oldStringLC = oldString.lower()
         newStringLC = newString.lower()
         dataLC = data.lower()
         index = dataLC.find(oldStringLC)
         while index > -1:
-            print("found " + oldString + " in " + data + " at " + str(index))
+            logging.debug("found " + oldString + " in " + data + " at " + str(index))
             front = dataLC[:index]
             end = dataLC[index + len(oldStringLC):]
             dataLC = front + newStringLC + end
@@ -223,16 +244,16 @@ class RegEdit():
     def replaceAll(self, oldstring, newstring, searchKeyName=True, searchValueName=True, searchValueData=True, caseSensitive=False):
         self.findAll(oldstring, searchKeyName, searchValueData, searchValueName, caseSensitive)
         for x in self.found:
-            print (x)
+            logging.debug (x)
             if x[0] == "Value Data":
                 self.replaceValueData(x[1], oldstring, newstring)
 
     def findAll(self, searchString, searchKeyName=True, searchValueName=True, searchValueData=True, caseSensitive=False):
         if not (searchKeyName or searchValueName or searchValueData):
-            print("Error: At least one category of data must be selected to search.")
+            logging.debug("Error: At least one category of data must be selected to search.")
             return
 
-        print("Finding all instances of \"" + searchString + "\"")
+        logging.debug("Finding all instances of \"" + searchString + "\"")
         self.reset()
         self.searchKeyName = searchKeyName
         self.searchValueData = searchValueData
@@ -242,10 +263,10 @@ class RegEdit():
             self.searchString = searchString
         else:
             self.searchString = searchString.lower()
-        self.iterateKeys (RegKey(win.HKEY_CLASSES_ROOT, "HKEY_CLASSES_ROOT", "HKEY_CLASSES_ROOT"), self.findInKey)
-        self.iterateKeys (RegKey(win.HKEY_CURRENT_USER, "HKEY_CURRENT_USER", ""), self.findInKey)
-        self.iterateKeys (RegKey(win.HKEY_LOCAL_MACHINE, "HKEY_LOCAL_MACHINE", "HKEY_LOCAL_MACHINE"), self.findInKey)
-        self.iterateKeys (RegKey(win.HKEY_USERS, "HKEY_USERS", "HKEY_USERS"), self.findInKey)
-        print (len(self.found), " matches found.")
-        print ("Read Errors: ", self.readErrors)
-        print ("Write Errors: ", self.writeErrors)
+        self.iterateKeys (getRegKey("HKEY_CLASSES_ROOT"), self.findInKey)
+        self.iterateKeys (getRegKey("HKEY_CURRENT_USER"), self.findInKey)
+        self.iterateKeys (getRegKey("HKEY_LOCAL_MACHINE"), self.findInKey)
+        self.iterateKeys (getRegKey("HKEY_USERS"), self.findInKey)
+        logging.debug (str(len(self.found)) + " matches found.")
+        logging.debug ("Read Errors: " + str(self.readErrors))
+        logging.debug ("Write Errors: " + str(self.writeErrors))
