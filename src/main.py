@@ -4,6 +4,7 @@
 
 from regedit import *
 from tkinter import *
+#import ScrolledText
 try:
     import thread
 except ImportError:
@@ -31,7 +32,7 @@ class App:
         self.replaceButton.grid(row=1, column=2)
 
         l = Label(frame, text="Search Options:")
-        l.grid(row=2, column=1)
+        l.grid(row=2, column=0)
         self.searchKeyName = IntVar()
         self.searchValueName = IntVar()
         self.searchValueData = IntVar()
@@ -42,14 +43,34 @@ class App:
         c = Checkbutton(frame, text="Value Data", variable=self.searchValueData)
         c.grid(row=3, column=2)
 
+        l = Label(frame, text="Search Hives:")
+        l.grid(row=4, column=0)
+        self.HKEY_CLASSES_ROOT = IntVar()
+        self.HKEY_CURRENT_USER = IntVar()
+        self.HKEY_LOCAL_MACHINE = IntVar()
+        self.HKEY_USERS = IntVar()
+        c = Checkbutton(frame, text="HKEY_CLASSES_ROOT", variable=self.HKEY_CLASSES_ROOT)
+        c.grid(row=5, column=0)
+        c = Checkbutton(frame, text="HKEY_CURRENT_USER", variable=self.HKEY_CURRENT_USER)
+        c.grid(row=5, column=1)
+        c = Checkbutton(frame, text="HKEY_LOCAL_MACHINE", variable=self.HKEY_LOCAL_MACHINE)
+        c.grid(row=6, column=0)
+        c = Checkbutton(frame, text="HKEY_USERS", variable=self.HKEY_USERS)
+        c.grid(row=6, column=1)
+
+        #t = ScrolledText.ScrolledText(frame, width=50, height=37)
+        #t.grid(row=6, column=0)
+
     def _find(self):
         self.disable()
+        self.setHives()
         self.reg.findAll(self.findString.get(), self.searchKeyName.get(),
                         self.searchValueName.get(), self.searchValueData.get())
         self.enable()
 
     def _replace(self):
         self.disable()
+        self.setHives()
         self.reg.replaceAll(self.findString.get(), self.replaceString.get(),
                         self.searchKeyName.get(), self.searchValueName.get(),
                         self.searchValueData.get())
@@ -68,6 +89,13 @@ class App:
     def enable(self):
         self.replaceButton.config(state = NORMAL)
         self.findButton.config(state = NORMAL)
+
+    def setHives(self):
+        self.reg.setHives(self.HKEY_CLASSES_ROOT.get(), self.HKEY_CURRENT_USER.get(),
+                          self.HKEY_LOCAL_MACHINE.get(), self.HKEY_USERS.get())
+
+
+
 root = Tk()
 root.title("Registry Editor")
 
